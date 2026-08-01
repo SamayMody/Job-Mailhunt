@@ -1,0 +1,25 @@
+[project]
+name = "mailhunt"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "botocore[crt]>=1.43.36",
+    "fastapi>=0.139.0",
+    "google-api-python-client>=2.198.0",
+    "google-auth-httplib2>=0.4.0",
+    "google-auth-oauthlib>=1.4.0",
+    "opentelemetry-exporter-otlp>=1.43.0",
+    "opentelemetry-sdk>=1.43.0",
+    "psycopg2-binary>=2.9.12",
+    "pyshorteners>=1.0.1",
+    "rich>=14.3.4",
+    "sqlalchemy>=2.0.51",
+    "strands-agents-tools>=0.8.2",
+    "strands-agents[openai,otel]>=1.45.0",
+    "strands-google>=0.1.0",
+    "strands-sql[postgres]>=0.1.9",
+    "uvicorn>=0.49.0",
+]

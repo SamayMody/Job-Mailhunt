@@ -1,0 +1,67 @@
+services:
+  db_postgres:
+    image: postgres:18
+    restart: always
+    ports: 
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - app-db-data:/var/lib/postgresql/data/pgdata
+    env_file:
+      - .env
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_DB=${POSTGRES_DB?Variable not set}
+
+
+  backend:
+    build: .
+    image: samay2004/mailhunt:latest
+    
+    ports:
+      - 8000:8000
+    
+    depends_on:
+      db_postgres:
+        condition: service_healthy
+
+    # ...
+
+    develop:
+      # Create a `watch` configuration to update the app
+      
+      watch:
+        # Sync the working directory with the `/app` directory in the container
+        - action: sync
+          path: .
+          target: /app
+          # Exclude the project virtual environment
+          ignore:
+            - .venv/
+
+        # Rebuild the image on changes to the `pyproject.toml`
+        - action: rebuild
+          path: ./pyproject.toml
+
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    command: ["http", "backend:8000"]
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN?Variable not set}
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "4040:4040"
+
+volumes:
+  app-db-data:
