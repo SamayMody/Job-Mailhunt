@@ -1,11 +1,9 @@
 import os
-import base64
 import json
 from dotenv import load_dotenv
 from strands import Agent
 from strands.models.openai import OpenAIModel
 from strands.telemetry import StrandsTelemetry
-from googleapiclient.discovery import build
 from bs4 import BeautifulSoup
 
 
@@ -18,43 +16,44 @@ from agent_code.utility import push_notifications, get_plain_text
 load_dotenv(override=True)
 db_connection = os.getenv("DATABASE_URL")
 
-def extract_info():
+def extract_info(last_history_id):
     service = gmail_credentials()
-    results = (
-        service.users().messages().list(userId="me", maxResults=1).execute()
-    )
-    messages = results.get("messages", [])
 
-    if not messages:
+    history = service.users().history().list(
+        userId="me",
+        startHistoryId=last_history_id,
+        historyTypes=["messageAdded"]
+    ).execute()
+
+    changes = history.get("history", [])
+    new_message_ids = []
+    for record in changes:
+        for added in record.get("messagesAdded", []):
+            new_message_ids.append(added["message"]["id"])
+
+    if not new_message_ids:
         return "No messages found."
 
-    for message in messages:
-        print(f'Message ID: {message["id"]}')
-        msg = (
-            service.users().messages().get(userId="me", id=message["id"]).execute()
-        )
+    msg_id = new_message_ids[-1]
 
-        headers = msg['payload']['headers']
-        subject = next(h['value'] for h in headers if h['name'].lower() == 'subject')
-        sender = next(h['value'] for h in headers if h['name'].lower() == 'from')
-        date = next(h['value'] for h in headers if h['name'].lower() == 'date')
+    msg = (
+        service.users().messages().get(userId="me", id=msg_id).execute()
+    )
 
-        result = get_plain_text(msg['payload'])
+    headers = msg['payload']['headers']
+    subject = next(h['value'] for h in headers if h['name'].lower() == 'subject')
+    sender = next(h['value'] for h in headers if h['name'].lower() == 'from')
+    date = next(h['value'] for h in headers if h['name'].lower() == 'date')
 
-        if isinstance(result, tuple) and result[0] == 'html':
-            soup = BeautifulSoup(result[1], 'html.parser')
-            clean_text = soup.get_text(separator='\n', strip=True)
-        elif result:
-            clean_text = result
-        else:
-            clean_text = "(no body found)"
-        # To get the full body text (if available in the payload)
-        # parts = msg['payload'].get('parts', [])
-        # for part in parts:
-        #     if part['mimeType'] == 'text/plain':
-        #         body_data = part['body'].get('data', '')
-        #         clean_text = base64.urlsafe_b64decode(body_data).decode('utf-8')
-    # we have date, subject, sender, clean_text
+    result = get_plain_text(msg['payload'])
+
+    if isinstance(result, tuple) and result[0] == 'html':
+        soup = BeautifulSoup(result[1], 'html.parser')
+        clean_text = soup.get_text(separator='\n', strip=True)
+    elif result:
+        clean_text = result
+    else:
+        clean_text = "(no body found)"
 
     extracted_information = {
     "from": sender,
@@ -95,6 +94,7 @@ def run_agent(extracted_info):
         return worker_agent_result
 
     else:
+        print("Not a job related mail")
         return "The email is not a job oppurtunity related mail"
 
 if __name__ == '__main__':

@@ -66,11 +66,16 @@ def get_plain_text(payload):
 
     return None
 
-if __name__ == '__main__':
-    print(url_shortner("https://en.wikipedia.org/wiki/Main_Page"))
 
-    data = {"from_sender": "Test", "date": "test", "company_name": "test", "role": "test", "link": "https://is.gd/cjvxKD"}
-    pydantic_data = MailInfo(**data)
-    print(push_notifications(pydantic_data))
+HISTORY_ID_FILE = "agent_code/history_id.json"
 
+def last_historyid():
+    if not os.path.exists(HISTORY_ID_FILE):
+        return None
+    with open(HISTORY_ID_FILE,"r") as f:
+        data = json.load(f)
+    return data.get("historyid")
 
+def save_historyid(new_historyid):
+    with open(HISTORY_ID_FILE,"w") as f:
+        data = json.dump({"historyid": new_historyid}, f)
